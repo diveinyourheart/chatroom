@@ -10,6 +10,10 @@ import (
 	"sync"
 )
 
+var (
+	writeMutex sync.Mutex
+)
+
 func main() {
 	go keyboardTextInputManager()
 	go keyboardIntInputManager()
@@ -38,6 +42,7 @@ func main() {
 func keyboardTextInputManager() {
 	for {
 		<-utils.TextInputRequestChan
+		writeMutex.Lock()
 		fmt.Println("请输入文本，输入exit+回车退出文本输入，输入rewrite+回车重写文本")
 		scnr := bufio.NewScanner(os.Stdin)
 		var txt string
@@ -56,6 +61,7 @@ func keyboardTextInputManager() {
 			fmt.Println("读取文本输入时发生错误:", err)
 			txt = ""
 		}
+		writeMutex.Unlock()
 		utils.TextResChan <- txt
 	}
 }
@@ -63,9 +69,11 @@ func keyboardTextInputManager() {
 func keyboardStringInputManager() {
 	for {
 		<-utils.StrInputRequestChan
+		writeMutex.Lock()
 		fmt.Println("tips:输入的字符串不能带有空格")
 		var str string
 		fmt.Scanln(&str)
+		writeMutex.Unlock()
 		utils.StrResChan <- str
 	}
 }
@@ -73,6 +81,7 @@ func keyboardStringInputManager() {
 func keyboardIntInputManager() {
 	for {
 		<-utils.IntInputRequestChan
+		writeMutex.Lock()
 		var key int
 		var isValid bool = false
 		for !isValid {
@@ -83,13 +92,14 @@ func keyboardIntInputManager() {
 				isValid = true
 			}
 		}
+		writeMutex.Unlock()
 		utils.IntResChan <- key
 	}
 }
 
 // 显示菜单并接收用户选择
 func showMenu1() int {
-	fmt.Println("------------------欢迎(●'◡'●)------------------")
+	fmt.Println("------------------欢迎OuQ------------------")
 	fmt.Println("\t\t\t 1 登陆")
 	fmt.Println("\t\t\t 2 注册用户")
 	fmt.Println("\t\t\t 3 退出系统")

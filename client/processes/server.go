@@ -15,9 +15,10 @@ var (
 	SERVER_IPv4_ADDRESS      string = "0.0.0.0:8889"
 	logOutChan                      = make(chan struct{}, 3)
 	blockShowMenuChan               = make(chan struct{})
-	gCMesRealTimeDisplayChan        = make(chan struct{})
-	newGCMesChan                    = make(chan ForStoringMes)
+	gCMesRealTimeDisplayChan        = make(chan struct{}, 1)
+	newGCMesChan                    = make(chan *ForStoringMes)
 	quitGroupChatChan               = make(chan struct{})
+	updateUnreadGCMesDone           = make(chan struct{})
 	mu                       sync.Mutex
 )
 
@@ -131,18 +132,15 @@ func ShowMenu(wg *sync.WaitGroup) {
 					FileRW.outputGroupChatHistoryMes(GCInfo.GroupID)
 					fmt.Println("已进入聊天室，你可以输入你想要发送的文本信息，输入quit+回车退出聊天室")
 					fmt.Printf("\n------------------------------------------------------------\n")
-					quit := false
-					txt := ""
-					for !quit {
+					var txt string
+					for {
 						txt = utils.ReadTextInput()
-						if txt != "quit\n" {
-							SmsPrcs.SendGroupChatMes(model.CurUsr.Usr.UserId, GCInfo, txt)
-						}
 						if txt == "quit\n" {
-							quit = true
+							quitGroupChatChan <- struct{}{}
+							break
 						}
+						SmsPrcs.SendGroupChatMes(model.CurUsr.Usr.UserId, GCInfo, txt)
 					}
-					quitGroupChatChan <- struct{}{}
 				case 2:
 					GCMgr.OutputGCMembers(GCInfo)
 				case 3:
@@ -275,9 +273,10 @@ func ProcessServerMes(conn net.Conn, wg *sync.WaitGroup) {
 			}
 			select {
 			case <-gCMesRealTimeDisplayChan:
-				newGCMesChan <- *TransferGCMes(&GCMes)
+				newGCMesChan <- TransferGCMes(&GCMes)
 			default:
 				unreadGCMsgCountChan <- GCMes.GroupChatId
+				<-updateUnreadGCMesDone
 				GC := GCMgr.GetGroupChatInfoByID(GCMes.GroupChatId)
 				unreadMesCount, _ := GCMgr.GetGCUnreadMesCountByID(GCMes.GroupChatId)
 				fmt.Printf("群聊%s有一条来自%s的新消息，还有未读消息%d条\n", GC.GroupName, GC.GroupMember[GCMes.OriginId].NickNameInGC, unreadMesCount)
@@ -290,14 +289,21 @@ func ProcessServerMes(conn net.Conn, wg *sync.WaitGroup) {
 }
 
 func GCMesRealTimeDisplay() {
+
 	for {
 		select {
 		case <-quitGroupChatChan:
 			return
-		default:
-			gCMesRealTimeDisplayChan <- struct{}{}
-			newGCMes := <-newGCMesChan
-			newGCMes.Visualize()
+		case gCMesRealTimeDisplayChan <- struct{}{}:
+			select {
+			case newGCMesPtr := <-newGCMesChan:
+				if newGCMesPtr != nil {
+					newGCMesPtr.Visualize()
+				}
+			case <-quitGroupChatChan:
+				<-gCMesRealTimeDisplayChan
+				return
+			}
 		}
 	}
 }

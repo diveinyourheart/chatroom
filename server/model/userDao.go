@@ -48,13 +48,18 @@ func (UD *UserDao) AddNewManagerInGC(GCOwnerID int, userID int, GCID int) (err e
 	if !exist {
 		return fmt.Errorf("被操作者不是该群的群成员")
 	}
+	count := message.MAX_GROUPMGR_NUMBER
 	for _, v := range GC.GroupMgr {
 		if v == 0 {
+			count--
 			continue
 		}
 		if v == userID {
 			return fmt.Errorf("被操作者已经是该群的管理员了")
 		}
+	}
+	if count == 5 {
+		return fmt.Errorf("群管理员席位已满，每个群聊最多有%d个管理员", message.MAX_GROUPMGR_NUMBER)
 	}
 	for idx, v := range GC.GroupMgr {
 		if v == 0 {

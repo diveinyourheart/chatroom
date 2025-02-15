@@ -175,7 +175,7 @@ func (up *UserProcess) HandleGroupManageResMes(mes *message.Message) (err error)
 			}
 		} else {
 			if GCMgr.GetGCLeader(GCManageResMes.GroupChatID) == model.CurUsr.Usr.UserId {
-				fmt.Printf("添加%d为群%s管理员失败\n", GCManageResMes.OperandID, GCName)
+				fmt.Printf("添加%d为群%s管理员失败,%s\n", GCManageResMes.OperandID, GCName, GCManageResMes.Error)
 			}
 		}
 	case message.JOIN_GROUP_CHAT:

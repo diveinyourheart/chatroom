@@ -112,6 +112,7 @@ func (this *GroupChatMgr) AcquireUnreadMesCount(wg *sync.WaitGroup) {
 			mu.Lock()
 			this.groupChatsUnreadMesCountMap[ID]++
 			mu.Unlock()
+			updateUnreadGCMesDone <- struct{}{}
 		case ID := <-readGCMsgCountChan:
 			mu.Lock()
 			this.groupChatsUnreadMesCountMap[ID] = 0
